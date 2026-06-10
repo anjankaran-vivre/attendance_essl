@@ -205,6 +205,8 @@ func (w *PunchWatcher) check() {
 					pe.PunchInTime = val
 				case "device":
 					pe.Device = val
+				case "outDevice":
+					pe.OutDevice = val
 				case "outDirection":
 					pe.Direction = val
 				case "returnPunchTime":
@@ -267,7 +269,7 @@ func (w *PunchWatcher) sendDuplicateAlerts(pe PunchError) {
 		dir, pe.PunchInTime, pe.Device,
 		dir, pe.PunchOutTime, pe.SecondDevice, pe.MinutesGap)
 
-	empMsg := fmt.Sprintf("Hi @%s, *%s*. You have a *%s* punch at %s on %s followed by another *%s* punch at %s on %s within %s minutes.",
+	empMsg := fmt.Sprintf("Hi @%s, *%s*. You have a *%s* punch at %s on %s followed by another *%s* punch at %s on %s. *Gap:* %s minutes.",
 		pe.EmployeeEmail, label, dir, pe.PunchInTime, pe.Device,
 		dir, pe.PunchOutTime, pe.SecondDevice, pe.MinutesGap)
 
@@ -294,10 +296,10 @@ func (w *PunchWatcher) sendLongBreakAlerts(pe PunchError) {
 	}
 
 	channelMsg := fmt.Sprintf("*Break Time Exceeded*. *Employee:* %s (ID: %s). *OUT:* %s at %s. *Return:* %s at %s. *Duration:* %s minutes (exceeded limit).",
-		pe.EmployeeName, pe.UserID, pe.PunchInTime, pe.Device, pe.PunchOutTime, pe.Device, pe.MinutesGap)
+		pe.EmployeeName, pe.UserID, pe.PunchInTime, pe.OutDevice, pe.PunchOutTime, pe.Device, pe.MinutesGap)
 
-	empMsg := fmt.Sprintf("Hi @%s, *Break Time Exceeded*. You were OUT from %s to %s on %s for %s minutes.",
-		pe.EmployeeEmail, pe.PunchInTime, pe.PunchOutTime, pe.Device, pe.MinutesGap)
+	empMsg := fmt.Sprintf("Hi @%s, *Break Time Exceeded*. You were OUT from %s at %s to %s at %s for %s minutes.",
+		pe.EmployeeEmail, pe.PunchInTime, pe.OutDevice, pe.PunchOutTime, pe.Device, pe.MinutesGap)
 
 	if pe.EmployeeEmail != "" {
 		if err := w.cliq.SendDM(pe.EmployeeEmail, empMsg); err != nil {

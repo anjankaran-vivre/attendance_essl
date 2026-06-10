@@ -130,6 +130,7 @@ type PunchError struct {
 	ErrorType       string `json:"Error_Type"`
 	Device          string `json:"Device"`
 	SecondDevice    string `json:"Second_Device"`
+	OutDevice       string `json:"Out_Device"`
 	MinutesGap      string `json:"Minutes_Gap"`
 	Direction       string `json:"Direction"`
 	SecondDirection string `json:"Second_Direction"`
@@ -186,6 +187,8 @@ func (e *Explorer) GetAllPunchErrors(logTable, deviceTable string, limit int, br
 				pe.PunchInTime = val
 			case "device":
 				pe.Device = val
+			case "outDevice":
+				pe.OutDevice = val
 			case "outDirection":
 				pe.Direction = val
 			case "returnPunchTime":
@@ -194,8 +197,8 @@ func (e *Explorer) GetAllPunchErrors(logTable, deviceTable string, limit int, br
 				pe.MinutesGap = val
 			}
 		}
-		pe.Details = fmt.Sprintf("Long Break - User %s was OUT for %s mins from %s to %s on %s",
-			pe.UserID, pe.MinutesGap, pe.PunchInTime, pe.PunchOutTime, pe.Device)
+		pe.Details = fmt.Sprintf("Long Break - User %s was OUT for %s mins from %s at %s to %s on %s",
+			pe.UserID, pe.MinutesGap, pe.PunchInTime, pe.OutDevice, pe.PunchOutTime, pe.Device)
 		errors = append(errors, pe)
 	}
 
@@ -253,6 +256,7 @@ SELECT
     r1.Direction AS returnDirection,
     r1.DeviceFName AS floor,
     r1.DeviceSName AS device,
+    r2.DeviceSName AS outDevice,
     r1.DeviceId,
     DATEDIFF(MINUTE, r2.LogDate, r1.LogDate) AS minutesGap
 FROM Ranked r1
@@ -334,6 +338,7 @@ SELECT TOP %d
     r1.Direction AS returnDirection,
     r1.DeviceFName AS floor,
     r1.DeviceSName AS device,
+    r2.DeviceSName AS outDevice,
     r1.DeviceId,
     DATEDIFF(MINUTE, r2.LogDate, r1.LogDate) AS minutesGap
 FROM Ranked r1
