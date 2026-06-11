@@ -157,6 +157,26 @@ func (m *DatabaseManager) InitTables() error {
 				);
 			END`,
 		},
+		{
+			"Out_Reminders",
+			`IF NOT EXISTS (
+				SELECT 1 FROM sysobjects WHERE name = 'Out_Reminders' AND xtype = 'U'
+			)
+			BEGIN
+				CREATE TABLE Out_Reminders (
+					ID INT IDENTITY(1,1) PRIMARY KEY,
+					UserID NVARCHAR(50),
+					EmailID NVARCHAR(255) DEFAULT '',
+					EmployeeName NVARCHAR(255) DEFAULT '',
+					OutTime DATETIME,
+					Device NVARCHAR(255),
+					Minutes INT,
+					AlertType NVARCHAR(50),
+					Details NVARCHAR(MAX),
+					CreatedAt DATETIME DEFAULT GETDATE()
+				);
+			END`,
+		},
 	}
 
 	for _, t := range tables {

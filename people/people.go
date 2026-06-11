@@ -307,6 +307,15 @@ func (m *Manager) SaveDetectedErrors(errors []data.PunchError) (dupCount, breakC
 				continue
 			}
 			breakCount++
+		} else if e.ErrorType == "Out Reminder" || e.ErrorType == "Out Alert" {
+			q := `INSERT INTO Out_Reminders (UserID, EmailID, EmployeeName, OutTime, Device, Minutes, AlertType, Details)
+				VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8)`
+			if err := m.db().ExecuteNonQuery(q,
+				e.UserID, email, e.EmployeeName, e.PunchInTime, e.Device, e.MinutesGap, e.ErrorType, e.Details,
+			); err != nil {
+				slog.Error("failed to save out reminder", "user", e.UserID, "error", err)
+				continue
+			}
 		}
 	}
 	return

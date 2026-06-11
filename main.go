@@ -448,7 +448,14 @@ func main() {
 			break
 		}
 		hrEmail := os.Getenv("HR_EMAIL")
-		watcher := data.NewPunchWatcher(db, explorer, tableName, "Devices", empManager.SaveDetectedErrors, messaging.DefaultCliq, hrEmail, empManager.GetNameByEmployeeID, func(id string) string { email, _ := empManager.GetEmailByEmployeeID(id); return email })
+		var adminEmails []string
+		if e1 := os.Getenv("ADMIN_EMAIL1"); e1 != "" {
+			adminEmails = append(adminEmails, e1)
+		}
+		if e2 := os.Getenv("ADMIN_EMAIL2"); e2 != "" {
+			adminEmails = append(adminEmails, e2)
+		}
+		watcher := data.NewPunchWatcher(db, explorer, tableName, "Devices", empManager.SaveDetectedErrors, messaging.DefaultCliq, hrEmail, adminEmails, empManager.GetNameByEmployeeID, func(id string) string { email, _ := empManager.GetEmailByEmployeeID(id); return email })
 		watcher.Start(watcherCtx)
 	}()
 

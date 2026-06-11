@@ -35,8 +35,9 @@ type PunchWatcher struct {
 	deviceTable string
 	saveFn      SaveFunc
 	cliq        *messaging.CliqConfig
-	hrEmail     string
-	testEmail   string
+	hrEmail      string
+	adminEmails  []string
+	testEmail    string
 	interval    time.Duration
 	lastPunch   time.Time
 	mu          sync.Mutex
@@ -45,7 +46,7 @@ type PunchWatcher struct {
 	outSessions map[string]*outSession
 }
 
-func NewPunchWatcher(db *database.MSSQLDatabase, explorer *Explorer, logTable, deviceTable string, saveFn SaveFunc, cliq *messaging.CliqConfig, hrEmail string, nameLookup func(userID string) string, emailLookup func(userID string) string) *PunchWatcher {
+func NewPunchWatcher(db *database.MSSQLDatabase, explorer *Explorer, logTable, deviceTable string, saveFn SaveFunc, cliq *messaging.CliqConfig, hrEmail string, adminEmails []string, nameLookup func(userID string) string, emailLookup func(userID string) string) *PunchWatcher {
 	return &PunchWatcher{
 		db:          db,
 		explorer:    explorer,
@@ -54,6 +55,7 @@ func NewPunchWatcher(db *database.MSSQLDatabase, explorer *Explorer, logTable, d
 		saveFn:      saveFn,
 		cliq:        cliq,
 		hrEmail:     hrEmail,
+		adminEmails: adminEmails,
 		testEmail:   "anjan.karan@vivrepanels.com",
 		interval:    30 * time.Second,
 		nameLookup:  nameLookup,
@@ -128,6 +130,10 @@ func (w *PunchWatcher) check() {
 	if err != nil {
 		slog.Error("watcher: failed to get affected users", "error", err)
 		return
+	}
+
+	if len(affected) > 0 {
+		slog.Info("watcher: new punches detected", "count", len(affected), "user_ids", affected)
 	}
 
 	for _, userID := range affected {
@@ -288,6 +294,13 @@ func (w *PunchWatcher) sendDuplicateAlerts(pe PunchError) {
 			slog.Info("watcher: sent duplicate alert to hr", "hr_email", w.hrEmail)
 		}
 	}
+	for _, email := range w.adminEmails {
+		if err := w.cliq.SendDM(email, channelMsg); err != nil {
+			slog.Error("watcher: cliq admin dm failed", "email", email, "error", err)
+		} else {
+			slog.Info("watcher: sent duplicate alert to admin", "admin_email", email)
+		}
+	}
 }
 
 func (w *PunchWatcher) sendLongBreakAlerts(pe PunchError) {
@@ -316,6 +329,13 @@ func (w *PunchWatcher) sendLongBreakAlerts(pe PunchError) {
 			slog.Info("watcher: sent break alert to hr", "hr_email", w.hrEmail)
 		}
 	}
+	for _, email := range w.adminEmails {
+		if err := w.cliq.SendDM(email, channelMsg); err != nil {
+			slog.Error("watcher: cliq admin dm failed", "email", email, "error", err)
+		} else {
+			slog.Info("watcher: sent break alert to admin", "admin_email", email)
+		}
+	}
 }
 
 func (w *PunchWatcher) sendOutReminder(employeeEmail, employeeName, userID string, session *outSession, minutes int) {
@@ -332,6 +352,17 @@ func (w *PunchWatcher) sendOutReminder(employeeEmail, employeeName, userID strin
 	} else {
 		slog.Info("watcher: sent %d min reminder", "user", userID, "email", employeeEmail, "minutes", minutes)
 	}
+
+	w.saveFn([]PunchError{{
+		ErrorType:     "Out Reminder",
+		UserID:        userID,
+		EmployeeName:  employeeName,
+		EmployeeEmail: employeeEmail,
+		PunchInTime:   outTime,
+		Device:        session.device,
+		MinutesGap:    fmt.Sprintf("%d", minutes),
+		Details:       msg,
+	}})
 }
 
 func (w *PunchWatcher) sendOutAt65(employeeEmail, employeeName, userID string, session *outSession, minutes int) {
@@ -348,6 +379,17 @@ func (w *PunchWatcher) sendOutAt65(employeeEmail, employeeName, userID string, s
 	} else {
 		slog.Info("watcher: sent 65 min alert", "user", userID, "email", employeeEmail)
 	}
+
+	w.saveFn([]PunchError{{
+		ErrorType:     "Out Alert",
+		UserID:        userID,
+		EmployeeName:  employeeName,
+		EmployeeEmail: employeeEmail,
+		PunchInTime:   outTime,
+		Device:        session.device,
+		MinutesGap:    fmt.Sprintf("%d", minutes),
+		Details:       msg,
+	}})
 }
 
 func (w *PunchWatcher) getAffectedUsers() ([]string, error) {
